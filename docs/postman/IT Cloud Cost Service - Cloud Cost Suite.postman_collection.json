@@ -1,0 +1,3754 @@
+{
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Automatically generate standard W3C traceparent (ADR-010) and X-Trace-Id",
+          "function generateHex(len) {",
+          "    let result = '';",
+          "    const chars = '0123456789abcdef';",
+          "    for (let i = 0; i < len; i++) {",
+          "        result += chars.charAt(Math.floor(Math.random() * chars.length));",
+          "    }",
+          "    return result;",
+          "}",
+          "const traceId = generateHex(32);",
+          "const spanId = generateHex(16);",
+          "const traceparent = `00-${traceId}-${spanId}-01`;",
+          "pm.request.headers.upsert({ key: 'traceparent', value: traceparent });",
+          "pm.request.headers.upsert({ key: 'X-Trace-Id', value: traceId });",
+          "pm.environment.set('currentTraceId', traceId);"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "info": {
+    "_exporter_id": "39879181",
+    "_postman_id": "c4e6a8b0-2d3f-4a5b-9c7d-8e9f0a1b2c03",
+    "description": "Enterprise-grade E2E Postman Suite for the IT Cloud Cost Service Domain (BIAN-aligned, ADR-001/005/013/019/030/031/032/033). Registers a cloud account (a name, the provider and its account id, one currency, a monthly budget, the warning use, the reporting interval, an optional vendor), reads and lists it with filters, reports what days cost (the same day and amount again is 200 with the stored report; another amount is a correction; going back to an earlier amount counts again), watches the current month go OK, NEAR_BUDGET (from the straight line to the month end) and OVER_BUDGET, sees a late cost of last month kept out of this month, lists by level, lists and reads the reports, updates the budget, pauses and resumes it (a paused account is not judged), accepts a cost for tomorrow (the provider day may be ahead), and reads the audit ledger in order. A second folder proves the service is staff only (403 ERR-CLD-00403 for a REQUESTER on every route). A third covers the negative guarantees: validation (blank or long name, unknown provider or currency, a bad provider account id, budgets and amounts negative, with three decimals or too large, warning and interval out of range, a malformed vendor id, missing executor or tenant, missing fields, a day two days ahead, a day that cannot be read), duplicates (409), illegal transitions, tenant isolation, unknown filters, list limits and the absence of DELETE, with RFC 7807 error_code assertions. It files everything under its own generated tenant id (ccOrganisationId).",
+    "name": "IT Cloud Cost Service - Cloud Cost Suite",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Health status is UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Health Check (Aggregated)",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ],
+              "raw": "{{base_url}}/health"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Liveness status is UP or UNKNOWN (no probe contributors registered)', () => pm.expect(['UP', 'UNKNOWN']).to.include(pm.response.json().status));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Liveness Probe",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "liveness"
+              ],
+              "raw": "{{base_url}}/health/liveness"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Readiness status is UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Readiness Probe",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "readiness"
+              ],
+              "raw": "{{base_url}}/health/readiness"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Contains JVM metrics', () => pm.expect(pm.response.text()).to.include('jvm_memory'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Prometheus Metrics",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "prometheus"
+              ],
+              "raw": "{{base_url}}/prometheus"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns Swagger UI HTML', () => pm.expect(pm.response.text()).to.include('swagger-ui'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Swagger UI",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "swagger-ui",
+                "index.html"
+              ],
+              "raw": "{{base_url}}/swagger-ui/index.html"
+            }
+          }
+        }
+      ],
+      "name": "00. Infrastructure & Telemetry"
+    },
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('ccOrganisationId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.environment.set('ccUserId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.environment.set('ccOtherTenantId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.environment.set('ccVendorId', pm.variables.replaceIn('{{$guid}}'));",
+                  "const now = new Date();",
+                  "const day = (d) => d.toISOString().slice(0, 10);",
+                  "const y = now.getUTCFullYear(), m = now.getUTCMonth();",
+                  "pm.environment.set('firstDay', day(new Date(Date.UTC(y, m, 1))));",
+                  "pm.environment.set('lastOfPrevious', day(new Date(Date.UTC(y, m, 0))));",
+                  "pm.environment.set('daysInMonth', String(new Date(Date.UTC(y, m + 1, 0)).getUTCDate()));",
+                  "pm.environment.set('month', day(now).slice(0, 7));",
+                  "pm.environment.set('tomorrow', day(new Date(now.getTime() + 24 * 3600 * 1000)));",
+                  "pm.environment.set('inTwoDays', day(new Date(now.getTime() + 2 * 24 * 3600 * 1000)));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('ACTIVE, NO_DATA for this month, budget and vendor kept', () => {",
+                  "    pm.expect(json.id).to.not.be.undefined;",
+                  "    pm.expect(json.status).to.eql('ACTIVE');",
+                  "    pm.expect(json.level).to.eql('NO_DATA');",
+                  "    pm.expect(json.month).to.eql(pm.environment.get('month'));",
+                  "    pm.expect(json.currency).to.eql('USD');",
+                  "    pm.expect(json.monthlyBudget).to.eql(3100);",
+                  "    pm.expect(json.spent == null).to.be.true;",
+                  "    pm.expect(json.vendorId).to.eql(pm.environment.get('ccVendorId'));",
+                  "});",
+                  "pm.environment.set('accountId', json.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "01. Initiate a cloud account (ACTIVE, nothing reported this month)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"123456789012\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('The account is the tenant\\'s own', () => { pm.expect(json.id).to.eql(pm.environment.get('accountId')); pm.expect(json.organisationId).to.eql(pm.environment.get('ccOrganisationId')); pm.expect(json.externalId).to.eql('123456789012'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "02. Retrieve the account by ID",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Only ours', () => { pm.expect(json).to.have.lengthOf(1); pm.expect(json[0].id).to.eql(pm.environment.get('accountId')); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "03. List accounts filtered by status, provider and currency",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE"
+                },
+                {
+                  "key": "provider",
+                  "value": "AWS"
+                },
+                {
+                  "key": "currency",
+                  "value": "USD"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/retrieve?status=ACTIVE&provider=AWS&currency=USD"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('A fact: the day and the amount, reported by the tool', () => {",
+                  "    pm.expect(json.amount).to.eql(50);",
+                  "    pm.expect(json.day).to.eql(pm.environment.get('firstDay'));",
+                  "    pm.expect(json.reportedBy).to.eql('billing-export');",
+                  "});",
+                  "pm.environment.set('reportId', json.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "04. Report 50.00 for the first day of the month (201, a new report)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 50.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "const days = Number(pm.environment.get('daysInMonth'));",
+                  "pm.test('OK, spent 50, the line at 50 times the days of the month', () => { pm.expect(json.level).to.eql('OK'); pm.expect(json.spent).to.eql(50); pm.expect(json.projected).to.eql(50 * days); pm.expect(json.usedPercent).to.be.closeTo(1.61, 0.01); pm.expect(json.stale).to.be.false; pm.expect(json.lastReportedAt).to.not.be.null; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "05. 50.00 a day heads to well under 3100.00: OK",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('The same report', () => pm.expect(json.id).to.eql(pm.environment.get('reportId')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "06. The same day and amount again is the stored report (200)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 50.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "07. A correction: the first day cost 120.00 (201)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 120.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "const days = Number(pm.environment.get('daysInMonth'));",
+                  "pm.test('NEAR_BUDGET from the line', () => { pm.expect(json.level).to.eql('NEAR_BUDGET'); pm.expect(json.spent).to.eql(120); pm.expect(json.projected).to.eql(120 * days); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "08. 120.00 a day heads over 3100.00: NEAR_BUDGET, though only 3.9 percent is spent",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('The first report again, at a later moment', () => pm.expect(json.id).to.eql(pm.environment.get('reportId')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "09. Back to 50.00 for the first day: the stored report, restated (200)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 50.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('OK, spent 50', () => { pm.expect(json.level).to.eql('OK'); pm.expect(json.spent).to.eql(50); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "10. The day counts 50.00 again: OK",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "11. Another correction: the first day cost 3200.00 (201)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 3200.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('OVER_BUDGET, over 100 percent', () => { pm.expect(json.level).to.eql('OVER_BUDGET'); pm.expect(json.spent).to.eql(3200); pm.expect(json.usedPercent).to.be.closeTo(103.23, 0.01); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "12. 3200.00 spent of 3100.00 is OVER_BUDGET",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "13. A late cost for last month is stored (201) but is not this month",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{lastOfPrevious}}\",\n  \"amount\": 99999.99\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Still 3200, OVER_BUDGET', () => { pm.expect(json.spent).to.eql(3200); pm.expect(json.level).to.eql('OVER_BUDGET'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "14. This month is still 3200.00",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Ours is the one', () => { const json = pm.response.json(); pm.expect(json).to.have.lengthOf(1); pm.expect(json[0].id).to.eql(pm.environment.get('accountId')); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "15. List accounts by level OVER_BUDGET",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "OVER_BUDGET"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/retrieve?level=OVER_BUDGET"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The first day, latest stated first: 3200 then 50', () => pm.expect(pm.response.json().map(r => r.amount)).to.eql([3200, 50]));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "16. List the reports newest first, limited",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{accountId}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "2"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/retrieve?accountId={{accountId}}&limit=2"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The 50.00 report', () => pm.expect(pm.response.json().amount).to.eql(50));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "17. Retrieve one report",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "{{reportId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/{{reportId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "18. Update: a budget of 10000.00, no vendor (204)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production\",\n  \"monthlyBudget\": 10000.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/update"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('NEAR_BUDGET, 32 percent, no vendor, provider and currency kept', () => { pm.expect(json.monthlyBudget).to.eql(10000); pm.expect(json.level).to.eql('NEAR_BUDGET'); pm.expect(json.usedPercent).to.be.closeTo(32, 0.001); pm.expect(json.vendorId == null).to.be.true; pm.expect(json.provider).to.eql('AWS'); pm.expect(json.currency).to.eql('USD'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "19. 3200.00 of 10000.00 on day one still heads over it: NEAR_BUDGET, 32 percent",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "20. Control: pause (ACTIVE -> PAUSED)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "control",
+                "pause"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/control/pause"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('PAUSED, nothing judged', () => { pm.expect(json.status).to.eql('PAUSED'); pm.expect(json.level).to.eql('PAUSED'); pm.expect(json.spent == null).to.be.true; pm.expect(json.projected == null).to.be.true; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "21. A paused account is not judged",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "22. Control: resume (PAUSED -> ACTIVE)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "control",
+                "resume"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/control/resume"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('EUR, a budget of zero', () => { pm.expect(pm.response.json().currency).to.eql('EUR'); pm.expect(pm.response.json().monthlyBudget).to.eql(0); });",
+                  "pm.environment.set('secondAccountId', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "23. A second account, on Azure in euros",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Data platform\",\n  \"provider\": \"AZURE\",\n  \"externalId\": \"sub-0f3c:prod\",\n  \"currency\": \"EUR\",\n  \"monthlyBudget\": 0,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "24. The provider's day may be one day ahead: a cost for tomorrow is accepted (201)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{secondAccountId}}\",\n  \"day\": \"{{tomorrow}}\",\n  \"amount\": 0.01\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Only the second', () => { const json = pm.response.json(); pm.expect(json).to.have.lengthOf(1); pm.expect(json[0].id).to.eql(pm.environment.get('secondAccountId')); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "25. List accounts by currency EUR",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "EUR"
+                },
+                {
+                  "key": "provider",
+                  "value": "AZURE"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/retrieve?currency=EUR&provider=AZURE"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('INITIATED, UPDATED, PAUSED, RESUMED, each by an executor', () => {",
+                  "    pm.expect(json.map(e => e.action)).to.eql(['INITIATED', 'UPDATED', 'PAUSED', 'RESUMED']);",
+                  "    json.forEach(e => pm.expect(e.executor).to.be.a('string').that.is.not.empty);",
+                  "    pm.expect(json[0].fromStatus == null).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "26. Read the audit ledger in order",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "audit-log",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/audit-log/retrieve"
+            }
+          }
+        }
+      ],
+      "name": "01. Cloud Account Lifecycle (BIAN Behavior Qualifiers)"
+    },
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "01. A REQUESTER cannot register an account (403)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Requester attempt\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"999\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "02. A REQUESTER cannot read an account (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "03. A REQUESTER cannot list accounts (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "04. A REQUESTER cannot update an account (403)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Requester attempt\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/update"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "05. A REQUESTER cannot pause an account (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "control",
+                "pause"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/control/pause"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "06. A REQUESTER cannot read an audit trail (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "audit-log",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/audit-log/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "07. A REQUESTER cannot report a cost (403)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 1.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "08. A REQUESTER cannot read a report (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "{{reportId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/{{reportId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "09. A REQUESTER cannot list reports (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{ccUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/retrieve"
+            }
+          }
+        }
+      ],
+      "name": "02. Staff Only (REQUESTER refused)"
+    },
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "01. Initiate - Blank name (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \" \",\n  \"provider\": \"AWS\",\n  \"externalId\": \"901\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "02. Initiate - Name over 80 characters (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"902\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "03. Initiate - Unknown provider (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad provider\",\n  \"provider\": \"IBM\",\n  \"externalId\": \"903\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "04. Initiate - Unknown currency (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad currency\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"904\",\n  \"currency\": \"JPY\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "05. Initiate - A provider account id with spaces (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad id\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"not an id\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "06. Initiate - A negative budget (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Negative\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"906\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": -1,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "07. Initiate - A budget with three decimals (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Fractions\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"907\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 10.001,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "08. Initiate - A warning of 0 percent (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Warn0\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"908\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 0,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "09. Initiate - A warning over 100 percent (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Warn101\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"909\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 101,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "10. Initiate - A reporting interval over 720 hours (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Slow\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"910\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 721,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "11. Initiate - A malformed vendor id (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Vendor\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"911\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"not-a-uuid\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "12. Initiate - Missing X-Executor (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"No executor\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"912\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "13. Initiate - Missing X-Tenant-Id (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"No tenant\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"913\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "14. Initiate - A second account with the same name (409)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"914\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "15. Initiate - A second account for the same provider account (409)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Same provider account\",\n  \"provider\": \"AWS\",\n  \"externalId\": \"123456789012\",\n  \"currency\": \"USD\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24,\n  \"vendorId\": \"{{ccVendorId}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "16. Update - Onto a name already registered (409)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{secondAccountId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{secondAccountId}}/update"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "17. Resume - An active account cannot be resumed (409)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "control",
+                "resume"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/control/resume"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "18. Retrieve - Non-existent account (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "00000000-0000-0000-0000-000000000000",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/00000000-0000-0000-0000-000000000000/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "19. Retrieve - Malformed UUID path (400)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "not-a-uuid",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/not-a-uuid/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "20. Retrieve - Another tenant answers like a missing one (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOtherTenantId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "21. Update - Another tenant (404)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Other\",\n  \"monthlyBudget\": 3100.00,\n  \"warnPercent\": 80,\n  \"reportEveryHours\": 24\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOtherTenantId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/update"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "22. Audit trail - Another tenant (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOtherTenantId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}",
+                "audit-log",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}/audit-log/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "23. List accounts - Unknown level (400)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "BOGUS"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/retrieve?level=BOGUS"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "24. List accounts - Unknown currency (400)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "JPY"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/retrieve?currency=JPY"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Nothing of ours', () => pm.expect(pm.response.json()).to.have.lengthOf(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "25. List accounts - Another tenant sees none",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOtherTenantId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Not allowed', () => pm.expect([404, 405]).to.include(pm.response.code));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "26. Delete - There is no DELETE (404 or 405)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "DELETE",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "{{accountId}}"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/{{accountId}}"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "27. Report a cost - A negative amount (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": -1.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "28. Report a cost - An amount with three decimals (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 1.005\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "29. Report a cost - An amount that is not a number (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": \"lots\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "30. Report a cost - Missing the amount (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "31. Report a cost - Missing the day (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"amount\": 1\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "32. Report a cost - Missing the account (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 1\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "33. Report a cost - A day two days ahead (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{inTwoDays}}\",\n  \"amount\": 1.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "34. Report a cost - A day that cannot be read (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"yesterday\",\n  \"amount\": 1\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "35. Report a cost - An absurdly large amount (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 100000000000.01\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "36. Report a cost - Missing X-Executor (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{accountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 1.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('otherAccountId', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "37. Report a cost - An account that is not the tenant's (404)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"{{otherAccountId}}\",\n  \"day\": \"{{firstDay}}\",\n  \"amount\": 1.00\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "billing-export"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "38. Retrieve a report - Non-existent (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "00000000-0000-0000-0000-000000000000",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/00000000-0000-0000-0000-000000000000/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-CLD-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-CLD-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "39. Retrieve a report - Another tenant answers like a missing one (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOtherTenantId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "{{reportId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/{{reportId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "40. List reports - A limit of zero (400)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "0"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/retrieve?limit=0"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "41. List reports - A limit over 200 (400)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "201"
+                }
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/retrieve?limit=201"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Nothing of ours', () => pm.expect(pm.response.json()).to.have.lengthOf(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "42. List reports - Another tenant sees none",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOtherTenantId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Not allowed', () => pm.expect([404, 405]).to.include(pm.response.code));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "43. Reports cannot be deleted: no DELETE (404 or 405)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{ccOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "DELETE",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-cloud-cost",
+                "v1",
+                "cost",
+                "{{reportId}}"
+              ],
+              "raw": "{{base_url}}/it-cloud-cost/v1/cost/{{reportId}}"
+            }
+          }
+        }
+      ],
+      "name": "03. Negative Tests & Guarantees"
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8111"
+    }
+  ]
+}
